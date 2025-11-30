@@ -13,6 +13,9 @@ import {
   ChevronRight,
   FlaskConical,
   Sparkles,
+  BookOpen,
+  Upload,
+  FolderOpen,
 } from 'lucide-react';
 
 interface NavItem {
@@ -43,6 +46,16 @@ const navigation: NavItem[] = [
       { name: 'Performance', href: '/admin/ai-observatory/performance', icon: BarChart3 },
       { name: 'Feedback', href: '/admin/ai-observatory/feedback', icon: MessageSquare },
       { name: 'Crises', href: '/admin/ai-observatory/crisis', icon: Shield },
+    ],
+  },
+  {
+    name: 'Base de Conhecimento',
+    href: '/admin/knowledge-base',
+    icon: BookOpen,
+    badge: 'RAG',
+    children: [
+      { name: 'Documentos', href: '/admin/knowledge-base/documents', icon: FolderOpen },
+      { name: 'Upload', href: '/admin/knowledge-base/upload', icon: Upload },
     ],
   },
   {

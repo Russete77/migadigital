@@ -8,22 +8,24 @@ import { adaptiveHumanizer } from '@/lib/server/nlp/adaptive-humanizer';
 import { ContextEnricher } from '@/lib/server/nlp/context-enricher';
 import { promptLibrary } from '@/lib/server/ai/prompt-library';
 import { abTestingService } from '@/lib/server/ai/ab-testing';
+import { getRelevantContext, logKnowledgeUsage } from '@/lib/server/knowledge/retrieval';
 
 // Initialize NLP components
 const sentimentAnalyzer = new SentimentAnalyzer();
 const contextEnricher = new ContextEnricher();
 
 /**
- * EMERGENCY CHAT v2.0 - Com Learning Loop
+ * EMERGENCY CHAT v3.0 - Com RAG + Learning Loop
  *
  * Pipeline completo:
  * 1. BERT Sentiment Analysis (pysentimiento PT-BR)
  * 2. Prompt Library (seleção dinâmica baseada em performance)
  * 3. A/B Testing (quando ativo)
  * 4. Context Enrichment (histórico do usuário)
- * 5. GPT-4o com prompt otimizado
- * 6. Humanização Adaptativa (aprende com feedback)
- * 7. Logs completos para AI Observatory + Learning Pipeline
+ * 5. RAG - Retrieval Augmented Generation (busca conhecimento relevante)
+ * 6. GPT-4o com prompt otimizado + conhecimento
+ * 7. Humanização Adaptativa (aprende com feedback)
+ * 8. Logs completos para AI Observatory + Learning Pipeline
  */
 export async function POST(req: NextRequest) {
   try {
@@ -115,11 +117,63 @@ export async function POST(req: NextRequest) {
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 4: GPT-4o Response
+    // LAYER 4: RAG - Retrieval Augmented Generation
     // ═══════════════════════════════════════════════════════════════
-    const userMessageWithContext = enrichedPrompt.contextPrefix
+    const ragStartTime = Date.now();
+    let ragContext = '';
+    let ragChunks: { chunkId: string; similarity: number }[] = [];
+
+    try {
+      const ragResult = await getRelevantContext(message, {
+        maxResults: 3,
+        minSimilarity: 0.7,
+        maxContextLength: 1500,
+        includeSource: false,
+      });
+
+      ragContext = ragResult.context;
+      ragChunks = ragResult.chunks.map((c) => ({
+        chunkId: c.chunkId,
+        similarity: c.similarity,
+      }));
+
+      if (ragContext) {
+        console.log('📚 RAG Context:', {
+          chunksFound: ragResult.chunks.length,
+          avgSimilarity: (
+            ragResult.chunks.reduce((s, c) => s + c.similarity, 0) /
+            ragResult.chunks.length
+          ).toFixed(2),
+          queryTime: `${ragResult.queryTime}ms`,
+        });
+      }
+    } catch (ragError) {
+      console.log('📚 RAG: Sem conhecimento relevante encontrado');
+    }
+
+    const ragTime = Date.now() - ragStartTime;
+
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 5: GPT-4o Response
+    // ═══════════════════════════════════════════════════════════════
+    // Construir mensagem com contexto do usuário + conhecimento RAG
+    let userMessageWithContext = enrichedPrompt.contextPrefix
       ? `${enrichedPrompt.contextPrefix}---\n\n💬 MENSAGEM ATUAL DA USUÁRIA:\n${message}`
       : message;
+
+    // Adicionar conhecimento RAG ao prompt do sistema se disponível
+    let systemPromptWithRAG = enrichedPrompt.systemPrompt;
+    if (ragContext) {
+      systemPromptWithRAG = `${enrichedPrompt.systemPrompt}
+
+═══════════════════════════════════════════════════════════════
+CONHECIMENTO ESPECIALIZADO (Use como referência, não cite diretamente):
+═══════════════════════════════════════════════════════════════
+${ragContext}
+═══════════════════════════════════════════════════════════════
+
+IMPORTANTE: Use esse conhecimento para enriquecer sua resposta, mas não mencione que você tem "base de dados" ou "documentos". Fale naturalmente como se fosse seu próprio conhecimento.`;
+    }
 
     const messages: Message[] = [
       ...(conversationHistory || []),
@@ -127,14 +181,14 @@ export async function POST(req: NextRequest) {
     ];
 
     const gptStartTime = Date.now();
-    const aiResponse = await createChatCompletion(enrichedPrompt.systemPrompt, messages, {
+    const aiResponse = await createChatCompletion(systemPromptWithRAG, messages, {
       maxTokens: 1024,
       temperature: enrichedPrompt.temperature,
     });
     const gptTime = Date.now() - gptStartTime;
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 5: Humanização Adaptativa
+    // LAYER 6: Humanização Adaptativa
     // ═══════════════════════════════════════════════════════════════
     const humanizerStartTime = Date.now();
     const roboticnessBefore = adaptiveHumanizer.detectRoboticness(aiResponse.message);
@@ -167,7 +221,7 @@ export async function POST(req: NextRequest) {
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 6: Safety Check
+    // LAYER 7: Safety Check
     // ═══════════════════════════════════════════════════════════════
     let finalMessage = humanizedMessage;
     const wasCrisis = sentiment.urgency === 'critica';
@@ -178,7 +232,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 7: Typing Delay (simular digitação humana)
+    // LAYER 8: Typing Delay (simular digitação humana)
     // ═══════════════════════════════════════════════════════════════
     const typingDelay = adaptiveHumanizer.calculateTypingDelay(finalMessage);
     await new Promise(resolve => setTimeout(resolve, Math.min(typingDelay, 2000))); // Max 2s
@@ -186,7 +240,7 @@ export async function POST(req: NextRequest) {
     const totalTime = Date.now() - startTime;
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 8: Save Session
+    // LAYER 9: Save Session
     // ═══════════════════════════════════════════════════════════════
     let finalSessionId = sessionId;
 
@@ -215,7 +269,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 9: Log para AI Observatory + Learning Pipeline
+    // LAYER 10: Log para AI Observatory + Learning Pipeline
     // ═══════════════════════════════════════════════════════════════
     let responseLogId: string | null = null;
 
@@ -276,6 +330,16 @@ export async function POST(req: NextRequest) {
         await abTestingService.logImpression(abAssignment.experimentId, abAssignment.variant);
       }
 
+      // Registrar uso do RAG
+      if (ragChunks.length > 0 && responseLogId) {
+        await logKnowledgeUsage({
+          responseLogId,
+          chunkIds: ragChunks.map((c) => c.chunkId),
+          queryText: message,
+          similarityScores: ragChunks.map((c) => c.similarity),
+        });
+      }
+
     } catch (logError) {
       console.error('⚠️ Failed to log response:', logError);
     }
@@ -313,11 +377,19 @@ export async function POST(req: NextRequest) {
           improvement_percent: improvementPercent.toFixed(1),
           rules_applied: humanizerStats.rulesApplied,
         },
+        rag: {
+          chunksUsed: ragChunks.length,
+          avgSimilarity: ragChunks.length > 0
+            ? (ragChunks.reduce((s, c) => s + c.similarity, 0) / ragChunks.length).toFixed(2)
+            : null,
+          hasContext: ragContext.length > 0,
+        },
         performance: {
           total_ms: totalTime,
           bert_ms: bertTime,
           prompt_selection_ms: promptTime,
           enricher_ms: enricherTime,
+          rag_ms: ragTime,
           gpt_ms: gptTime,
           humanizer_ms: humanizerTime,
         },

@@ -1,0 +1,73 @@
+name: Fine-tune BERT Model
+
+on:
+  # Executa mensalmente no dia 1 as 3h da manha
+  schedule:
+    - cron: '0 3 1 * *'
+
+  # Permite execucao manual
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Dias de dados para usar'
+        required: false
+        default: '90'
+      epochs:
+        description: 'Numero de epochs'
+        required: false
+        default: '3'
+
+jobs:
+  fine-tune:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install transformers datasets torch supabase pandas scikit-learn huggingface-hub accelerate
+
+      - name: Run fine-tuning
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+        run: |
+          python scripts/fine-tune-bert.py \
+            --upload \
+            --days ${{ github.event.inputs.days || '90' }} \
+            --epochs ${{ github.event.inputs.epochs || '3' }}
+
+      - name: Upload training data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-data
+          path: data/training/
+          retention-days: 30
+
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: finetuned-model
+          path: models/bert-sentiment-finetuned/
+          retention-days: 90
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "Fine-tuning completed successfully!"
+          echo "Model uploaded to HuggingFace Hub"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Fine-tuning failed! Check the logs above."
