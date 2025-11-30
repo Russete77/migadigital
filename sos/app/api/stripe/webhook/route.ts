@@ -37,19 +37,114 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const clerkId = session.metadata?.clerk_id;
-        const tier = session.metadata?.tier;
+        const type = session.metadata?.type;
+        const tokens = parseInt(session.metadata?.tokens || "0");
+        const planId = session.metadata?.plan_id;
+        const planName = session.metadata?.plan_name;
 
-        if (clerkId && tier) {
+        if (!clerkId) {
+          console.error("Missing clerk_id in session metadata");
+          break;
+        }
+
+        // Buscar perfil
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("id, credits_remaining")
+          .eq("clerk_id", clerkId)
+          .single();
+
+        if (!profile) {
+          console.error("Profile not found for:", clerkId);
+          break;
+        }
+
+        if (type === "subscription") {
+          // Assinatura - atualiza tier e adiciona tokens
           await supabaseAdmin
             .from("profiles")
             .update({
-              subscription_tier: tier,
+              subscription_tier: planId,
               subscription_status: "active",
               stripe_subscription_id: session.subscription as string,
+              credits_remaining: (profile.credits_remaining || 0) + tokens,
             })
             .eq("clerk_id", clerkId);
 
-          console.log("✅ Subscription activated for:", clerkId);
+          // Registrar no historico
+          await supabaseAdmin.from("credits_history").insert({
+            user_id: profile.id,
+            amount: tokens,
+            action_type: "subscription_purchase",
+            description: `Assinatura ${planName} - ${tokens.toLocaleString("pt-BR")} tokens`,
+            metadata: { plan_id: planId, session_id: session.id },
+          });
+
+          console.log(`✅ Assinatura ${planName} ativada: +${tokens.toLocaleString()} tokens para ${clerkId}`);
+        } else if (type === "package") {
+          // Pacote avulso - apenas adiciona tokens
+          await supabaseAdmin
+            .from("profiles")
+            .update({
+              credits_remaining: (profile.credits_remaining || 0) + tokens,
+            })
+            .eq("clerk_id", clerkId);
+
+          // Registrar no historico
+          await supabaseAdmin.from("credits_history").insert({
+            user_id: profile.id,
+            amount: tokens,
+            action_type: "package_purchase",
+            description: `Pacote ${planName} - ${tokens.toLocaleString("pt-BR")} tokens`,
+            metadata: { package_id: planId, session_id: session.id },
+          });
+
+          console.log(`✅ Pacote ${planName} comprado: +${tokens.toLocaleString()} tokens para ${clerkId}`);
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        // Renovacao de assinatura - adiciona tokens novamente
+        const invoice = event.data.object as Stripe.Invoice;
+
+        if (invoice.billing_reason === "subscription_cycle") {
+          const subscriptionId = invoice.subscription as string;
+
+          // Buscar perfil pelo subscription_id
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("id, clerk_id, subscription_tier, credits_remaining")
+            .eq("stripe_subscription_id", subscriptionId)
+            .single();
+
+          if (profile) {
+            // Determinar tokens baseado no tier
+            const tierTokens: Record<string, number> = {
+              monthly: 10_000_000,
+              semiannual: 70_000_000,
+              annual: 175_000_000,
+            };
+
+            const tokens = tierTokens[profile.subscription_tier] || 10_000_000;
+
+            await supabaseAdmin
+              .from("profiles")
+              .update({
+                credits_remaining: (profile.credits_remaining || 0) + tokens,
+              })
+              .eq("id", profile.id);
+
+            await supabaseAdmin.from("credits_history").insert({
+              user_id: profile.id,
+              amount: tokens,
+              action_type: "subscription_renewal",
+              description: `Renovacao de assinatura - ${tokens.toLocaleString("pt-BR")} tokens`,
+              metadata: { subscription_id: subscriptionId, invoice_id: invoice.id },
+            });
+
+            console.log(`✅ Renovacao: +${tokens.toLocaleString()} tokens para ${profile.clerk_id}`);
+          }
         }
         break;
       }

@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { INITIAL_TOKENS, formatTokens } from "@/lib/constants/tokens";
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -46,23 +47,37 @@ export async function POST(req: Request) {
     const { id, email_addresses, first_name, last_name, image_url } = evt.data;
 
     try {
-      const { error } = await supabaseAdmin.from("profiles").insert({
+      // Criar perfil com tokens iniciais
+      const { data: profile, error } = await supabaseAdmin.from("profiles").insert({
         clerk_id: id,
         email: email_addresses[0]?.email_address || "",
         full_name: `${first_name || ""} ${last_name || ""}`.trim() || null,
         avatar_url: image_url || null,
         subscription_tier: "free",
         subscription_status: "inactive",
-        credits_remaining: 3,
+        credits_remaining: INITIAL_TOKENS,
         onboarding_completed: false,
-      });
+        streak_count: 0,
+        last_login_date: null,
+      }).select('id').single();
 
       if (error) {
         console.error("Error creating profile:", error);
         return new Response("Error creating profile", { status: 500 });
       }
 
-      console.log("✅ Profile created successfully for:", email_addresses[0]?.email_address);
+      // Registrar tokens iniciais no historico
+      if (profile) {
+        await supabaseAdmin.from("credits_history").insert({
+          user_id: profile.id,
+          amount: INITIAL_TOKENS,
+          action_type: "welcome_bonus",
+          description: `Bonus de boas-vindas! ${formatTokens(INITIAL_TOKENS)} tokens para comecar`,
+          metadata: { type: "initial_tokens" },
+        });
+      }
+
+      console.log(`✅ Profile created with ${formatTokens(INITIAL_TOKENS)} tokens for:`, email_addresses[0]?.email_address);
     } catch (error) {
       console.error("Error in user.created webhook:", error);
       return new Response("Error processing webhook", { status: 500 });

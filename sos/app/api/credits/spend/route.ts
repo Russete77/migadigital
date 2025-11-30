@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/server/supabase-admin';
+import { TOKEN_COSTS, formatTokens, type TokenCostType } from '@/lib/constants/tokens';
 
 /**
- * POST /api/credits/spend - Gastar creditos
+ * POST /api/credits/spend - Gastar tokens
+ * Aceita action_type como chave do TOKEN_COSTS ou amount direto
  */
 export async function POST(req: NextRequest) {
   try {
@@ -13,16 +15,26 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { amount, action_type, description, metadata = {} } = body;
+    const { feature, amount: customAmount, description, metadata = {} } = body;
 
-    // Validacao
-    if (!amount || amount <= 0) {
-      return NextResponse.json({ error: 'Quantidade deve ser maior que zero' }, { status: 400 });
-    }
+    // Determinar quantidade a gastar
+    let amount: number;
+    let actionType: string;
+    let actionDescription: string;
 
-    if (!action_type || !description) {
+    if (feature && feature in TOKEN_COSTS) {
+      // Usar custo pre-definido da feature
+      amount = TOKEN_COSTS[feature as TokenCostType];
+      actionType = feature;
+      actionDescription = description || `Uso de ${feature}`;
+    } else if (customAmount && customAmount > 0) {
+      // Usar quantidade customizada (para casos especiais)
+      amount = customAmount;
+      actionType = body.action_type || 'custom';
+      actionDescription = description || 'Uso de tokens';
+    } else {
       return NextResponse.json(
-        { error: 'action_type e description sao obrigatorios' },
+        { error: 'Informe feature (CHAT_MESSAGE, PRINT_ANALYSIS, etc) ou amount' },
         { status: 400 }
       );
     }
@@ -41,41 +53,59 @@ export async function POST(req: NextRequest) {
     // Verificar saldo suficiente
     if (profile.credits_remaining < amount) {
       return NextResponse.json(
-        { error: 'Creditos insuficientes. Faca upgrade para continuar.' },
+        {
+          error: 'Tokens insuficientes',
+          required: amount,
+          available: profile.credits_remaining,
+          required_formatted: formatTokens(amount),
+          available_formatted: formatTokens(profile.credits_remaining),
+        },
         { status: 403 }
       );
     }
 
-    // Call database function (passa negativo para gastar)
-    const { data, error } = await supabaseAdmin.rpc('update_user_credits', {
-      p_user_id: profile.id,
-      p_amount: -amount, // Negativo para gastar
-      p_action_type: action_type,
-      p_description: description,
-      p_metadata: metadata,
-    });
+    // Atualizar saldo diretamente
+    const newBalance = profile.credits_remaining - amount;
 
-    if (error) {
-      console.error('Error spending credits:', error);
+    const { error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({ credits_remaining: newBalance })
+      .eq('id', profile.id);
 
-      // Se erro for de creditos insuficientes
-      if (error.message.includes('insuficientes')) {
-        return NextResponse.json({ error: 'Creditos insuficientes' }, { status: 403 });
-      }
-
-      return NextResponse.json({ error: 'Erro ao gastar creditos' }, { status: 500 });
+    if (updateError) {
+      console.error('Error updating credits:', updateError);
+      return NextResponse.json({ error: 'Erro ao gastar tokens' }, { status: 500 });
     }
 
-    console.log(`💸 Creditos gastos: -${amount} (${action_type}) - ${userId}`);
+    // Registrar no historico
+    const { data: historyEntry, error: historyError } = await supabaseAdmin
+      .from('credits_history')
+      .insert({
+        user_id: profile.id,
+        amount: -amount,
+        action_type: actionType,
+        description: actionDescription,
+        metadata,
+      })
+      .select('id')
+      .single();
+
+    if (historyError) {
+      console.error('Error logging credit history:', historyError);
+    }
+
+    console.log(`💸 Tokens gastos: -${formatTokens(amount)} (${actionType}) - ${userId}`);
 
     return NextResponse.json({
       success: true,
       amount: -amount,
-      new_balance: data.new_balance,
-      history_id: data.history_id,
+      amount_formatted: formatTokens(amount),
+      new_balance: newBalance,
+      new_balance_formatted: formatTokens(newBalance),
+      history_id: historyEntry?.id,
     });
   } catch (error) {
     console.error('Credits spend error:', error);
-    return NextResponse.json({ error: 'Erro ao gastar creditos' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao gastar tokens' }, { status: 500 });
   }
 }
