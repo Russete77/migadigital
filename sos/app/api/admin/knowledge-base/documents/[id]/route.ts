@@ -32,7 +32,7 @@ export async function DELETE(
 }
 
 /**
- * GET: Busca um documento específico
+ * GET: Busca um documento específico com todos os chunks
  */
 export async function GET(
   request: NextRequest,
@@ -41,22 +41,89 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { data, error } = await supabaseAdmin
+    // Buscar documento
+    const { data: document, error: docError } = await supabaseAdmin
       .from('knowledge_documents')
-      .select('*, knowledge_chunks(id, chunk_index, content_length)')
+      .select('*')
       .eq('id', id)
       .single();
 
-    if (error) {
-      throw error;
+    if (docError) {
+      throw docError;
     }
 
-    return NextResponse.json(data);
+    // Buscar chunks com conteúdo completo
+    const { data: chunks, error: chunksError } = await supabaseAdmin
+      .from('knowledge_chunks')
+      .select('id, chunk_index, content, content_length, metadata')
+      .eq('document_id', id)
+      .order('chunk_index', { ascending: true });
+
+    if (chunksError) {
+      console.error('Error fetching chunks:', chunksError);
+    }
+
+    return NextResponse.json({
+      document,
+      chunks: chunks || [],
+    });
   } catch (error) {
     console.error('Get document error:', error);
     return NextResponse.json(
       { error: 'Documento não encontrado' },
       { status: 404 }
+    );
+  }
+}
+
+/**
+ * PATCH: Atualiza chunks de um documento
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { chunks } = body;
+
+    if (!chunks || typeof chunks !== 'object') {
+      return NextResponse.json(
+        { error: 'Chunks inválidos' },
+        { status: 400 }
+      );
+    }
+
+    // Atualizar cada chunk editado
+    for (const [chunkId, content] of Object.entries(chunks)) {
+      const { error } = await supabaseAdmin
+        .from('knowledge_chunks')
+        .update({
+          content: content as string,
+          content_length: (content as string).length,
+          embedding: null, // Limpar embedding para regenerar depois
+        })
+        .eq('id', chunkId)
+        .eq('document_id', id);
+
+      if (error) {
+        console.error('Error updating chunk:', error);
+      }
+    }
+
+    // Atualizar updated_at do documento
+    await supabaseAdmin
+      .from('knowledge_documents')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Update document error:', error);
+    return NextResponse.json(
+      { error: 'Erro ao atualizar documento' },
+      { status: 500 }
     );
   }
 }

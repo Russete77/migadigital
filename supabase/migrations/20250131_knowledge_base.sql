@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
   status TEXT DEFAULT 'pending', -- pending, processing, completed, failed
   error_message TEXT,
   metadata JSONB DEFAULT '{}',
-  created_by UUID REFERENCES users(id),
+  created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS document_categories (
 -- ═══════════════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS knowledge_usage_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  response_log_id UUID REFERENCES ai_response_logs(id),
+  response_log_id UUID, -- Referência opcional ao ai_response_logs
   chunk_ids UUID[] NOT NULL,
   query_text TEXT,
   similarity_scores FLOAT[],

@@ -2,9 +2,52 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/server/supabase-admin';
 import { createDocument, processPDFContent } from '@/lib/server/knowledge/pdf-processor';
 import { generateDocumentEmbeddings } from '@/lib/server/knowledge/embeddings';
+import OpenAI from 'openai';
 
-// Para processar PDF no servidor, usamos pdf-parse
-// npm install pdf-parse
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+/**
+ * Extrai texto de um PDF usando OpenAI Vision
+ * Envia o PDF como base64 para GPT-4o extrair o texto
+ */
+async function extractTextFromPDF(buffer: Buffer, fileName: string): Promise<string> {
+  const base64 = buffer.toString('base64');
+  const mimeType = 'application/pdf';
+
+  console.log('🤖 Enviando PDF para OpenAI Vision...');
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'file',
+            file: {
+              filename: fileName,
+              file_data: `data:${mimeType};base64,${base64}`,
+            },
+          } as any,
+          {
+            type: 'text',
+            text: `Extraia TODO o texto deste PDF. Mantenha a formatação original o máximo possível (parágrafos, listas, títulos).
+
+Retorne APENAS o texto extraído, sem comentários ou explicações adicionais. Se houver múltiplas páginas, separe-as com "---".`,
+          },
+        ],
+      },
+    ],
+    max_tokens: 16000,
+  });
+
+  const extractedText = response.choices[0]?.message?.content || '';
+  console.log('✅ Texto extraído:', extractedText.length, 'caracteres');
+
+  return extractedText;
+}
 
 /**
  * POST: Upload de documento (PDF ou texto)
@@ -37,16 +80,14 @@ export async function POST(request: NextRequest) {
       let textContent = '';
 
       if (file.type === 'application/pdf') {
-        // Processar PDF
+        // Processar PDF com OpenAI Vision
         try {
-          // Importação dinâmica do pdf-parse
-          const pdfParse = (await import('pdf-parse')).default;
-          const pdfData = await pdfParse(buffer);
-          textContent = pdfData.text;
-        } catch (pdfError) {
-          console.error('Error parsing PDF:', pdfError);
+          console.log('📄 Processing PDF:', file.name, 'Size:', buffer.length, 'bytes');
+          textContent = await extractTextFromPDF(buffer, file.name);
+        } catch (pdfError: any) {
+          console.error('❌ Error parsing PDF:', pdfError?.message || pdfError);
           return NextResponse.json(
-            { error: 'Erro ao processar PDF. Verifique se o arquivo é válido.' },
+            { error: `Erro ao processar PDF: ${pdfError?.message || 'Formato inválido'}` },
             { status: 400 }
           );
         }

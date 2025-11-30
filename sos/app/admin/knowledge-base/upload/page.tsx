@@ -128,17 +128,18 @@ export default function UploadPage() {
           formData.append('categories', JSON.stringify(selectedCategories));
 
           try {
+            console.log('Uploading file:', uploadFile.file.name);
             const response = await fetch('/api/admin/knowledge-base/upload', {
               method: 'POST',
               body: formData,
             });
 
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.message || 'Erro ao fazer upload');
-            }
-
             const result = await response.json();
+            console.log('Upload response:', result);
+
+            if (!response.ok) {
+              throw new Error(result.error || 'Erro ao fazer upload');
+            }
 
             setFiles((prev) =>
               prev.map((f, idx) =>
@@ -148,6 +149,7 @@ export default function UploadPage() {
               )
             );
           } catch (error) {
+            console.error('Upload error:', error);
             setFiles((prev) =>
               prev.map((f, idx) =>
                 idx === i
@@ -162,17 +164,21 @@ export default function UploadPage() {
           }
         }
 
+        setIsUploading(false);
+
         // Redirecionar após upload completo
-        setTimeout(() => {
-          router.push('/admin/knowledge-base/documents');
-        }, 1500);
+        const hasErrors = files.some(f => f.status === 'error');
+        if (!hasErrors) {
+          setTimeout(() => {
+            router.push('/admin/knowledge-base/documents');
+          }, 1500);
+        }
       }
     } catch (error) {
       console.error('Erro no upload:', error);
       alert('Erro ao fazer upload. Tente novamente.');
+      setIsUploading(false);
     }
-
-    setIsUploading(false);
   };
 
   const allCompleted = files.every((f) => f.status === 'completed');

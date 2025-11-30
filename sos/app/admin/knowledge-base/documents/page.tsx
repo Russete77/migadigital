@@ -11,6 +11,7 @@ import {
   Clock,
   Search,
   Filter,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -245,12 +246,19 @@ export default function DocumentsPage() {
             </thead>
             <tbody>
               {filteredDocuments.map((doc) => (
-                <tr key={doc.id} className="border-t border-border-default/50">
+                <tr key={doc.id} className="border-t border-border-default/50 hover:bg-bg-elevated/50 transition-colors">
                   <td className="py-3 px-4">
-                    <p className="font-medium text-text-primary">{doc.title}</p>
-                    {doc.file_name && (
-                      <p className="text-xs text-text-tertiary">{doc.file_name}</p>
-                    )}
+                    <Link
+                      href={`/admin/knowledge-base/documents/${doc.id}`}
+                      className="block group"
+                    >
+                      <p className="font-medium text-text-primary group-hover:text-flame-primary transition-colors">
+                        {doc.title}
+                      </p>
+                      {doc.file_name && (
+                        <p className="text-xs text-text-tertiary">{doc.file_name}</p>
+                      )}
+                    </Link>
                     {doc.error_message && (
                       <p className="text-xs text-red-500 mt-1">{doc.error_message}</p>
                     )}
@@ -269,6 +277,13 @@ export default function DocumentsPage() {
                   <td className="py-3 px-4 text-center">{getStatusBadge(doc.status)}</td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/admin/knowledge-base/documents/${doc.id}`}
+                        className="p-2 text-flame-primary hover:bg-flame-primary/10 rounded-lg"
+                        title="Ver documento"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
                       {doc.status === 'failed' && (
                         <button
                           onClick={() => handleReprocess(doc.id)}
