@@ -1,0 +1,190 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  darkMode: "class",
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Primary - Vermelho vibrante (urgência, poder)
+        primary: {
+          DEFAULT: "#E63946",
+          50: "#FEF2F3",
+          100: "#FFADB5",
+          200: "#F77F8B",
+          300: "#F77F8B",
+          400: "#F77F8B",
+          500: "#F25C66",
+          600: "#E63946",
+          700: "#D62828",
+          800: "#B91C1C",
+          900: "#991B1B",
+        },
+        // Secondary - Laranja terracota (acolhimento)
+        secondary: {
+          DEFAULT: "#F4A261",
+          50: "#FEF7EE",
+          100: "#FDECD4",
+          200: "#FBD7A7",
+          300: "#F6B67A",
+          400: "#F4A261",
+          500: "#F59045",
+          600: "#E67635",
+          700: "#C05B2A",
+          800: "#984A28",
+          900: "#7A3E25",
+        },
+        // Accent - Coral queimado
+        accent: {
+          DEFAULT: "#E76F51",
+          50: "#FEF3F0",
+          100: "#FDE4DD",
+          200: "#FBCBBB",
+          300: "#F5A893",
+          400: "#ED8B6F",
+          500: "#E76F51",
+          600: "#D94E2F",
+          700: "#B63A21",
+          800: "#93311E",
+          900: "#782C1E",
+        },
+        // Backgrounds - Tons quentes
+        bg: {
+          primary: "#FFFBF7",
+          secondary: "#FFF5EE",
+        },
+        // Text colors
+        text: {
+          primary: "#2B2D42",
+          secondary: "#6B6C7E",
+          tertiary: "#9FA0B0",
+        },
+        // Status colors com calor
+        danger: "#E63946",
+        warning: "#F4A261",
+        success: "#06D6A0",
+        info: "#118AB2",
+
+        // Aliases for Shadcn compatibility
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      fontFamily: {
+        display: ["var(--font-poppins)", "system-ui", "sans-serif"],
+        body: ["var(--font-inter)", "system-ui", "sans-serif"],
+        accent: ["var(--font-space-grotesk)", "system-ui", "monospace"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+      },
+      fontSize: {
+        xs: ["0.75rem", { lineHeight: "1rem" }],
+        sm: ["0.875rem", { lineHeight: "1.25rem" }],
+        base: ["1rem", { lineHeight: "1.5rem" }],
+        lg: ["1.125rem", { lineHeight: "1.75rem" }],
+        xl: ["1.25rem", { lineHeight: "1.75rem" }],
+        "2xl": ["1.5rem", { lineHeight: "2rem" }],
+        "3xl": ["1.875rem", { lineHeight: "2.25rem" }],
+        "4xl": ["2.25rem", { lineHeight: "2.5rem" }],
+        "5xl": ["3rem", { lineHeight: "1" }],
+        "6xl": ["3.75rem", { lineHeight: "1" }],
+      },
+      spacing: {
+        "1": "0.25rem",  // 4px
+        "2": "0.5rem",   // 8px
+        "3": "0.75rem",  // 12px
+        "4": "1rem",     // 16px
+        "5": "1.25rem",  // 20px
+        "6": "1.5rem",   // 24px
+        "8": "2rem",     // 32px
+        "10": "2.5rem",  // 40px
+        "12": "3rem",    // 48px
+        "16": "4rem",    // 64px
+        "20": "5rem",    // 80px
+        "24": "6rem",    // 96px
+      },
+      borderRadius: {
+        sm: "8px",
+        DEFAULT: "12px",
+        md: "12px",
+        lg: "16px",
+        xl: "20px",
+        "2xl": "24px",
+        full: "9999px",
+      },
+      boxShadow: {
+        sm: "0 2px 8px rgba(230, 57, 70, 0.08)",
+        DEFAULT: "0 4px 20px rgba(230, 57, 70, 0.12)",
+        md: "0 4px 20px rgba(230, 57, 70, 0.12)",
+        lg: "0 8px 40px rgba(230, 57, 70, 0.16)",
+        xl: "0 20px 60px rgba(230, 57, 70, 0.24)",
+        "2xl": "0 25px 70px rgba(230, 57, 70, 0.35)",
+      },
+      backgroundImage: {
+        "gradient-hero": "linear-gradient(135deg, #E63946 0%, #F4A261 100%)",
+        "gradient-soft": "linear-gradient(135deg, #F77F8B 0%, #F6B67A 100%)",
+        "gradient-emergency": "radial-gradient(circle, #E63946 0%, #D62828 100%)",
+        "gradient-surface": "linear-gradient(180deg, #FFFFFF 0%, #FFF5EE 100%)",
+      },
+      keyframes: {
+        "pulse-ring": {
+          "0%, 100%": {
+            opacity: "0",
+            transform: "scale(1)",
+          },
+          "50%": {
+            opacity: "0.3",
+            transform: "scale(1.1)",
+          },
+        },
+        "slide-in": {
+          from: {
+            opacity: "0",
+            transform: "translateY(10px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
+        "fade-in": {
+          from: {
+            opacity: "0",
+          },
+          to: {
+            opacity: "1",
+          },
+        },
+      },
+      animation: {
+        "pulse-ring": "pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "slide-in": "slide-in 0.3s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

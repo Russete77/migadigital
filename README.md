@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SOS Emocional 24h by Thiago Lins
 
-## Getting Started
+![Status](https://img.shields.io/badge/STATUS-MVP_COMPLETO-success?style=for-the-badge)
+![Mobile](https://img.shields.io/badge/MOBILE-FIRST-blue?style=for-the-badge)
 
-First, run the development server:
+**Seu escudo contra decisões que você vai se arrepender**
+
+Micro-SaaS de intervenção emocional com IA que incorpora a personalidade e metodologia do coach Thiago Lins (@tl.marques). Ajuda mulheres a evitarem mensagens impulsivas, analisarem conversas e identificarem red flags em relacionamentos.
+
+## Stack Técnica
+
+- **Framework**: Next.js 15 (App Router)
+- **Linguagem**: TypeScript (strict mode)
+- **Styling**: Tailwind CSS + Shadcn/ui
+- **Animações**: Framer Motion
+- **Auth**: Clerk
+- **Database**: Supabase (Postgres + RLS)
+- **AI**: Anthropic Claude 3.5 Sonnet
+- **Payments**: Stripe (PIX + Cartão)
+- **Deploy**: Vercel
+
+## Features Principais
+
+### 🚨 Botão SOS de Emergência
+- Botão gigante pulsante (280x280px)
+- Breathing exercise de 10s
+- Chat com IA (personalidade do Thiago Lins)
+- Intervenção em tempo real
+
+### 🔍 Analisador de Conversas
+- Upload de prints (até 3)
+- Análise de texto manual
+- Claude Vision OCR
+- Resultados detalhados com gráficos
+
+### 📝 Diário Emocional
+- Mood tracker (1-10)
+- Seleção de emoções
+- Timeline de evolução
+
+### 🎧 Biblioteca de Áudios
+- Categorias: Emergência, Autoestima, Estratégia, Mentalidade, Cura
+- Player integrado
+
+### 💎 Sistema de Assinaturas
+- **Free**: 3 análises/mês, 5 usos SOS
+- **Premium (R$ 39,90/mês)**: 15 análises, SOS ilimitado
+- **Pro (R$ 69,90/mês)**: Tudo ilimitado + exclusividades
+
+## Quick Start
 
 ```bash
+# 1. Instalar dependências
+npm install
+
+# 2. Configurar .env.local
+cp .env.local.example .env.local
+
+# 3. Executar schema SQL no Supabase
+# (veja supabase-schema.sql)
+
+# 4. Rodar localmente
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse: http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Documentação Completa
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Deploy**: Veja `DEPLOYMENT_GUIDE.md`
+- **Resumo**: Veja `PROJECT_SUMMARY.md`
 
-## Learn More
+## MVP 100% COMPLETO ✅
 
-To learn more about Next.js, take a look at the following resources:
+Todos os sprints (1, 2, 3 e 4) implementados:
+- ✅ Autenticação (Clerk)
+- ✅ Dashboard com SOS
+- ✅ Chat de emergência com IA
+- ✅ Analisador de conversas
+- ✅ Resultados com gráficos
+- ✅ Stripe integration (PIX + Cartão)
+- ✅ Diário emocional
+- ✅ Biblioteca de áudios
+- ✅ Settings
+- ✅ 100% Mobile-First
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**41 arquivos TypeScript criados**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+© 2024 SOS Emocional 24h - Desenvolvido com Claude Code by Anthropic
